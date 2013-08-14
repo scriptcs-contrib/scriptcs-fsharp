@@ -41,8 +41,8 @@
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <ItemGroup>
     <Compile Include="FSharpScriptEngine.fs" />
-    <None Include="packages.config" />
     <Compile Include="FSharpModule.fs" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Autofac">
@@ -69,8 +69,8 @@
       <HintPath>packages\ExtCore.0.8.29\lib\net40\ExtCore.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="FSharp.Compiler, Version=4.3.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-      <Private>True</Private>
+    <Reference Include="FSharp.Compiler">
+      <HintPath>packages\FsiEval.0.1.0-alpha\lib\net40\FSharp.Compiler.dll</HintPath>
     </Reference>
     <Reference Include="fsiAnyCpu">
       <HintPath>packages\FsiEval.0.1.0-alpha\lib\net40\fsiAnyCpu.exe</HintPath>
@@ -89,27 +89,14 @@
     <Reference Include="NuGet.Core, Version=1.6.30117.9648, Culture=neutral, PublicKeyToken=31bf3856ad364e35">
       <Private>True</Private>
     </Reference>
-    <Reference Include="Roslyn.Compilers, Version=1.2.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35">
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Roslyn.Compilers.CSharp, Version=1.2.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35">
-      <Private>True</Private>
-    </Reference>
     <Reference Include="ScriptCs.Contracts">
-      <HintPath>packages\ScriptCs.Contracts.0.6.0-alpha\lib\net45\ScriptCs.Contracts.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>packages\ScriptCs.Contracts.0.6.0\lib\net45\ScriptCs.Contracts.dll</HintPath>
     </Reference>
     <Reference Include="ScriptCs.Core">
-      <HintPath>packages\ScriptCs.Core.0.6.0-alpha\lib\net45\ScriptCs.Core.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="ScriptCs.Engine.Roslyn">
-      <HintPath>packages\ScriptCs.Engine.Roslyn.0.6.0-alpha\lib\net45\ScriptCs.Engine.Roslyn.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>packages\ScriptCs.Core.0.6.0\lib\net45\ScriptCs.Core.dll</HintPath>
     </Reference>
     <Reference Include="ScriptCs.Hosting">
-      <HintPath>packages\ScriptCs.Hosting.0.6.0-alpha\lib\net45\ScriptCs.Hosting.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>packages\ScriptCs.Hosting.0.6.0\lib\net45\ScriptCs.Hosting.dll</HintPath>
     </Reference>
     <Reference Include="ServiceStack.Text">
       <HintPath>packages\ServiceStack.Text.3.9.56\lib\net35\ServiceStack.Text.dll</HintPath>
