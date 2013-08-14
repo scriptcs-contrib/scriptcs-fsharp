@@ -89,6 +89,9 @@ csx
 AppPackages/
 
 # Others
+.build/
+build/
+nuget/
 [Bb]in
 [Oo]bj
 sql
