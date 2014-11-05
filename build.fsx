@@ -1,119 +1,242 @@
-#if BOOT
-open Fake
-module FB = Fake.Boot
-FB.Prepare {
-    FB.Config.Default __SOURCE_DIRECTORY__ with
-        NuGetDependencies =
-            let (!!) x = FB.NuGetDependency.Create x
-            [
-                !!"FAKE"
-                !!"NuGet.Build"
-                !!"NuGet.Core"
-            ]
-}
-#endif
+// --------------------------------------------------------------------------------------
+// FAKE build script 
+// --------------------------------------------------------------------------------------
 
-#load ".build/boot.fsx"
-
+#I "packages/FAKE/tools"
+#r "Nuget.Core.dll"
+#r "FakeLib.dll"
+open System
 open System.IO
 open Fake 
+open Fake.Git
 open Fake.AssemblyInfoFile
-open Fake.MSBuild
+open Fake.ReleaseNotesHelper
+#if MONO
+#else
+#load "packages/SourceLink.Fake/tools/SourceLink.fsx"
+open SourceLink
+#endif
 
-(* properties *)
-let projectName = "ScriptCs.FSharp"
-let version =
-    if isLocalBuild then
-        "0.1." + System.DateTime.UtcNow.ToString("yMMdd") + "-alpha"
-    else buildVersion
-let projectSummary = "A ScriptCs script engine for F#."
-let projectDescription = "A ScriptCs script engine for F#."
-let authors = ["7sharp9"; "gblock"; "panesofglass"]
-let mail = "ryan.riley@panesofglass.org"
-let homepage = "https://github.com/glennblock/scriptcs-fsharp"
+// --------------------------------------------------------------------------------------
+// Provide project-specific details below
+// --------------------------------------------------------------------------------------
 
-(* Directories *)
-let buildDir = "./build/"
-let packagesDir = "./packages/"
+// Information about the project are used
+//  - for version and project name in generated AssemblyInfo file
+//  - by the generated NuGet package 
+//  - to run tests and to publish documentation on GitHub gh-pages
+//  - for documentation, you also need to edit info in "docs/tools/generate.fsx"
 
-let nugetDir = "./nuget/"
-let nugetLibDir = nugetDir @@ "lib/net45"
+// The name of the project 
+// (used by attributes in AssemblyInfo, name of a NuGet package and directory in 'src')
+let project = "ScriptCs.FSharp"
 
-(* Tools *)
-let nugetPath = ".nuget/nuget.exe"
+// Short summary of the project
+// (used as description in AssemblyInfo and as a short summary for NuGet package)
+let summary = "A ScriptCs script engine for F#"
 
-let RestorePackageParamF = 
-  fun _ ->{ ToolPath = nugetPath
-            Sources = []
-            TimeOut = System.TimeSpan.FromMinutes 5.
-            OutputPath = "./packages" 
-           } :Fake.RestorePackageHelper.RestorePackageParams
+// Longer description of the project
+// (used as a description for NuGet package; line breaks are automatically cleaned up)
+let description = """
+  A ScriptCs script engine for F#."""
+// List of author names (for NuGet package)
+let authors = [ "7sharp9"; "gblock"; "panesofglass" ]
+// Tags for your project (for NuGet package)
+let tags = "scriptcs F# fsharp scripting REPL"
 
-let RestorePackages2() = 
-  !! "./**/packages.config"
-  |> Seq.iter (RestorePackage RestorePackageParamF)
-RestorePackages2()
+// File system information 
+// (<solutionFile>.sln is built during the building process)
+let solutionFile = "ScriptCs.FSharp.sln"
 
-(* files *)
-let appReferences =
-    !+ "/**/*.fsproj" 
-        |> Scan
+// Pattern specifying assemblies to be tested using NUnit
+let testAssemblies = "tests/**/bin/Release/*Tests*exe"
 
-(* Targets *)
+// Git configuration (used for publishing documentation in gh-pages branch)
+// The profile where the project is posted 
+let gitHome = "git@github.com:scriptcs-contrib"
+// The name of the project on GitHub
+let gitName = "scriptcs-fsharp"
+let gitRaw = environVarOrDefault "gitRaw" "https://raw.github.com/scriptcs-contrib"
+
+// --------------------------------------------------------------------------------------
+// The rest of the file includes standard build steps 
+// --------------------------------------------------------------------------------------
+
+// Read additional information from the release notes document
+Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
+let (!!) includes = (!! includes).SetBaseDirectory __SOURCE_DIRECTORY__
+let release = parseReleaseNotes (IO.File.ReadAllLines "RELEASE_NOTES.md")
+let isAppVeyorBuild = environVar "APPVEYOR" <> null
+let nugetVersion =
+    if isAppVeyorBuild then
+        // If `release.NugetVersion` includes a pre-release suffix, just append the `buildVersion`.
+        if release.NugetVersion.Contains("-") then
+            sprintf "%s%s" release.NugetVersion buildVersion
+        else sprintf "%s.%s" release.NugetVersion buildVersion
+    else release.NugetVersion
+
+// Generate assembly info files with the right version & up-to-date information
+Target "AssemblyInfo" (fun _ ->
+  let fileName = "./AssemblyInfo.fs"
+  CreateFSharpAssemblyInfo fileName
+      [ Attribute.Title project
+        Attribute.Product project
+        Attribute.Description summary
+        Attribute.Version release.AssemblyVersion
+        Attribute.FileVersion release.AssemblyVersion ] )
+
+Target "BuildVersion" (fun _ ->
+    Shell.Exec("appveyor", sprintf "UpdateBuild -Version \"%s\"" nugetVersion) |> ignore
+)
+
+// --------------------------------------------------------------------------------------
+// Clean build results & restore NuGet packages
+
+Target "RestorePackages" RestorePackages
+
 Target "Clean" (fun _ ->
-    CleanDirs [buildDir; nugetDir; nugetLibDir]
+    CleanDirs ["bin"; "temp"]
 )
 
-Target "BuildApp" (fun _ -> 
-    if not isLocalBuild then
-        [ Attribute.Version(version)
-          Attribute.Title(projectName)
-          Attribute.Description(projectDescription)
-          Attribute.Guid("113CDD96-0824-491E-B332-62D4FDE02A1E")
-        ]
-        |> CreateFSharpAssemblyInfo "AssemblyInfo.fs"
-
-    MSBuildRelease buildDir "Build" appReferences
-        |> Log "AppBuild-Output: "
+Target "CleanDocs" (fun _ ->
+    CleanDirs ["docs/output"]
 )
 
-Target "CopyLicense" (fun _ ->
-    [ "LICENSE" ] |> CopyTo buildDir
+// --------------------------------------------------------------------------------------
+// Build library & test project
+
+Target "Build" (fun _ ->
+    !! solutionFile
+    |> MSBuildRelease "" "Rebuild"
+    |> ignore
 )
 
-Target "BuildNuGet" (fun _ ->
-    [ buildDir + "ScriptCs.FSharp.dll"
-      buildDir + "ScriptCs.FSharp.pdb" ]
-        |> CopyTo nugetLibDir
+Target "CopyFiles" (fun _ ->
+    [ "LICENSE.txt" ] |> CopyTo "bin"
+)
 
-    let fsiVersion = GetPackageVersion packagesDir "FsiEval"
-    let scriptcsVersion = GetPackageVersion packagesDir "ScriptCs.Hosting"
-    NuGet (fun p ->
-        {p with
+#if MONO
+#else
+// --------------------------------------------------------------------------------------
+// SourceLink allows Source Indexing on the PDB generated by the compiler, this allows
+// the ability to step through the source code of external libraries https://github.com/ctaggart/SourceLink
+
+Target "SourceLink" (fun _ ->
+    let baseUrl = sprintf "%s/%s/{0}/%%var2%%" gitRaw (project.ToLower())
+    use repo = new GitRepo(__SOURCE_DIRECTORY__)
+    !! "src/**/*.fsproj"
+    |> Seq.iter (fun f ->
+        let proj = VsProj.LoadRelease f
+        logfn "source linking %s" proj.OutputFilePdb
+        let files = proj.Compiles -- "**/AssemblyInfo.fs"
+        repo.VerifyChecksums files
+        proj.VerifyPdbChecksums files
+        proj.CreateSrcSrv baseUrl repo.Revision (repo.Paths files)
+        Pdbstr.exec proj.OutputFilePdb proj.OutputFilePdbSrcSrv
+    )
+)
+#endif
+
+// --------------------------------------------------------------------------------------
+// Build a NuGet package
+
+Target "NuGet" (fun _ ->
+    let fsiVersion = GetPackageVersion "packages" "FSharp.Compiler.Service"
+    let scriptcsVersion = GetPackageVersion "packages" "ScriptCs.Hosting"
+    NuGet (fun p -> 
+        { p with   
             Authors = authors
-            Project = projectName
-            Description = projectDescription
-            Version = version
-            OutputPath = nugetDir
-            Dependencies = [ "FsiEval", fsiVersion
-                             "ScriptCs.Hosting", scriptcsVersion ]
+            Project = project
+            Summary = summary
+            Description = description
+            Version = release.NugetVersion
+            ReleaseNotes = String.Join(Environment.NewLine, release.Notes)
+            Tags = tags
+            OutputPath = "bin"
             AccessKey = getBuildParamOrDefault "nugetkey" ""
-            ToolPath = nugetPath
-            Publish = hasBuildParam "nugetkey" })
-        "ScriptCs.FSharp.nuspec"
+            Publish = hasBuildParam "nugetkey"
+            Dependencies = [ "FSharp.Compiler.Service", fsiVersion
+                             "ScriptCs.Hosting", scriptcsVersion ]
+            Files = [ (@"bin\ScriptCs.FSharp.dll", Some "lib/net40", None)
+                      (@"bin\ScriptCs.FSharp.xml", Some "lib/net40", None)
+                      (@"bin\ScriptCs.FSharp.pdb", Some "lib/net40", None) ] })
+        (project + ".nuspec")
 )
 
-Target "Deploy" DoNothing
-Target "Default" DoNothing
+// --------------------------------------------------------------------------------------
+// Generate the documentation
 
-(* Build Order *)
+Target "GenerateReferenceDocs" (fun _ ->
+    if not <| executeFSIWithArgs "docs/tools" "generate.fsx" ["--define:RELEASE"; "--define:REFERENCE"] [] then
+      failwith "generating reference documentation failed"
+)
+
+Target "GenerateHelp" (fun _ ->
+    if not <| executeFSIWithArgs "docs/tools" "generate.fsx" ["--define:RELEASE"; "--define:HELP"] [] then
+      failwith "generating help documentation failed"
+)
+
+Target "GenerateDocs" DoNothing
+
+// --------------------------------------------------------------------------------------
+// Release Scripts
+
+Target "ReleaseDocs" (fun _ ->
+    let tempDocsDir = "temp/gh-pages"
+    CleanDir tempDocsDir
+    Repository.cloneSingleBranch "" (gitHome + "/" + gitName + ".git") "gh-pages" tempDocsDir
+
+    CopyRecursive "docs/output" tempDocsDir true |> tracefn "%A"
+    StageAll tempDocsDir
+    Commit tempDocsDir (sprintf "Update generated documentation for version %s" release.NugetVersion)
+    Branches.push tempDocsDir
+)
+
+Target "Release" (fun _ ->
+    StageAll ""
+    Commit "" (sprintf "Bump version to %s" release.NugetVersion)
+    Branches.push ""
+
+    Branches.tag "" release.NugetVersion
+    Branches.pushTag "" "origin" release.NugetVersion
+)
+
+Target "BuildPackage" DoNothing
+
+// --------------------------------------------------------------------------------------
+// Run all targets by default. Invoke 'build <Target>' to override
+
+Target "All" DoNothing
+
 "Clean"
-    ==> "BuildApp" <=> "CopyLicense"
-    ==> "BuildNuGet"
-    ==> "Deploy"
+  =?> ("BuildVersion", isAppVeyorBuild)
+  ==> "RestorePackages"
+  ==> "AssemblyInfo"
+  ==> "Build"
+//  ==> "RunTests"
+  ==> "CopyFiles"
+  ==> "All"
+  =?> ("GenerateReferenceDocs",isLocalBuild && not isMono)
+  =?> ("GenerateDocs",isLocalBuild && not isMono)
+  =?> ("ReleaseDocs",isLocalBuild && not isMono)
 
-"Default" <== ["Deploy"]
+"All" 
+#if MONO
+#else
+  =?> ("SourceLink", Pdbstr.tryFind().IsSome )
+#endif
+  ==> "NuGet"
+  ==> "BuildPackage"
 
-// start build
-RunTargetOrDefault "Default"
+"CleanDocs"
+  ==> "GenerateHelp"
+  ==> "GenerateReferenceDocs"
+  ==> "GenerateDocs"
+    
+"ReleaseDocs"
+  ==> "Release"
 
+"BuildPackage"
+  ==> "Release"
+
+RunTargetOrDefault "All"
