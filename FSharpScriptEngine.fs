@@ -7,9 +7,9 @@ open System.Linq
 open System.Runtime.ExceptionServices
 open Microsoft.FSharp.Compiler.Interactive.Shell
 open Common.Logging
-open ExtCore
 open ScriptCs
 open ScriptCs.Hosting
+open ScriptCs.Contracts
 
 type Result =
     | Success of String
@@ -25,8 +25,9 @@ type FSharpEngine(host: IScriptHost) =
     let stderrStream = new CompilerOutputStream()
     let stderr = StreamWriter.Synchronized(new StreamWriter(stderrStream, AutoFlush=true))
      
-    let commonOptions = [| "fsi.exe"; "--nologo"; "--readline-";|]
-    let session = FsiEvaluationSession(commonOptions, stdin, stdout, stderr)
+    let fsiConfig = FsiEvaluationSession.GetDefaultConfiguration()
+    let commonOptions = [| "c:\\fsi.exe"; "--nologo"; "--readline-"; "--noninteractive"|]
+    let session = FsiEvaluationSession.Create(fsiConfig, commonOptions, stdin, Console.Out, stderr)
 
     let (>>=) (d1:#IDisposable) (d2:#IDisposable) = 
         { new IDisposable with
@@ -63,16 +64,27 @@ type FSharpEngine(host: IScriptHost) =
             (stdin >>= stdoutStream >>= stdout >>= stderrStream >>= stderr).Dispose()             
                              
 type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
-    let mutable baseDir = String.empty
+    let mutable baseDir = String.Empty
+    let mutable cacheDir = String.Empty
+    let mutable filename = String.Empty
     let [<Literal>] sessionKey = "F# Session"
     
     interface IScriptEngine with
+
+        member x.FileName
+            with get() = filename
+            and set value = filename <- value
+
+        member x.CacheDirectory
+            with get() = cacheDir
+            and set value = cacheDir <- value
+
         member x.BaseDirectory
             with get() = baseDir
             and set value = baseDir <- value
 
         member x.Execute(code, args, references, namespaces, scriptPackSession) =
-            let distinctReferences = references.Union(scriptPackSession.References).Distinct()
+            let distinctReferences = references.PathReferences.Union(scriptPackSession.References).Distinct()
             let sessionState = 
                 match scriptPackSession.State.TryGetValue sessionKey with
                 | false, _ ->
@@ -80,17 +92,17 @@ type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
                     logger.Debug("Creating session")
                     let session = new FSharpEngine(host)
                       
-                    distinctReferences
-                    |> Seq.iter (fun ref ->
-                        logger.DebugFormat("Adding reference to {0}", ref)
-                        session.SilentAddReference ref)
+//                    distinctReferences
+//                    |> Seq.iter (fun ref ->
+//                        logger.DebugFormat("Adding reference to {0}", ref)
+//                        session.SilentAddReference ref)
+//                      
+//                    namespaces.Union(scriptPackSession.Namespaces).Distinct() 
+//                    |> Seq.iter (fun ns ->
+//                        logger.DebugFormat("Importing namespace {0}", ns)
+//                        session.SilentImportNamespace ns)
                       
-                    namespaces.Union(scriptPackSession.Namespaces).Distinct() 
-                    |> Seq.iter (fun ns ->
-                        logger.DebugFormat("Importing namespace {0}", ns)
-                        session.SilentImportNamespace ns)
-                      
-                    let sessionState = SessionState<_>(References = distinctReferences, Session = session)
+                    let sessionState = SessionState<_>(References = AssemblyReferences (distinctReferences, Seq.empty), Session = session)
                     scriptPackSession.State.Add(sessionKey, sessionState)
                     sessionState 
                 | true, res ->
@@ -100,8 +112,8 @@ type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
                     let newReferences =
                         match sessionState.References with
                         | null -> distinctReferences
-                        | refs when Seq.isEmpty refs -> distinctReferences
-                        | refs ->  distinctReferences.Except refs
+                        | refs when Seq.isEmpty refs.PathReferences -> distinctReferences
+                        | refs ->  distinctReferences.Except refs.PathReferences
                     newReferences
                     |> Seq.iter (fun ref ->
                         logger.DebugFormat("Adding reference to {0}", ref)
@@ -114,7 +126,7 @@ type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
                     result.Split([|"\r"; "\n";|], StringSplitOptions.RemoveEmptyEntries)
                     |> Array.filter (fun str -> not(str = "> "))
                     |> String.concat "\r\n"
-                ScriptResult(ReturnValue = cleaned)
-            | Error e -> ScriptResult(CompileExceptionInfo = ExceptionDispatchInfo.Capture(exn e))
+                ScriptResult(cleaned)
+            | Error e -> ScriptResult(compilationException=exn e)
             | Incomplete -> ScriptResult()
 
