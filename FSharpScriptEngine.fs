@@ -83,15 +83,15 @@ type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
                     logger.Debug("Creating session")
                     let session = new FSharpEngine(host)
                       
-//                    distinctReferences
-//                    |> Seq.iter (fun ref ->
-//                        logger.DebugFormat("Adding reference to {0}", ref)
-//                        session.SilentAddReference ref)
-//                      
-//                    namespaces.Union(scriptPackSession.Namespaces).Distinct() 
-//                    |> Seq.iter (fun ns ->
-//                        logger.DebugFormat("Importing namespace {0}", ns)
-//                        session.SilentImportNamespace ns)
+                    distinctReferences
+                    |> Seq.iter (fun ref ->
+                        logger.DebugFormat("Adding reference to {0}", ref)
+                        session.SilentAddReference ref)
+                      
+                    namespaces.Union(scriptPackSession.Namespaces).Distinct() 
+                    |> Seq.iter (fun ns ->
+                        logger.DebugFormat("Importing namespace {0}", ns)
+                        session.SilentImportNamespace ns)
                       
                     let sessionState = SessionState<_>(References = AssemblyReferences (distinctReferences, Seq.empty), Session = session)
                     scriptPackSession.State.Add(sessionKey, sessionState)
