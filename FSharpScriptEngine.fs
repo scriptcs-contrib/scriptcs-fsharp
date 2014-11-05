@@ -27,7 +27,7 @@ type FSharpEngine(host: IScriptHost) =
 
     let fsiConfig = FsiEvaluationSession.GetDefaultConfiguration()
     let commonOptions = [| "c:\\fsi.exe"; "--nologo"; "--readline-"; "--noninteractive"|]
-    let session = FsiEvaluationSession.Create(fsiConfig, commonOptions, stdin, Console.Out, stderr)
+    let session = FsiEvaluationSession.Create(fsiConfig, commonOptions, stdin, stdout, stderr)
 
     let (>>=) (d1:#IDisposable) (d2:#IDisposable) =
         { new IDisposable with
