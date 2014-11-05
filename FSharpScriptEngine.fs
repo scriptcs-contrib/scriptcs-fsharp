@@ -16,26 +16,26 @@ type Result =
     | Error of string
     | Incomplete
 
-type FSharpEngine(host: IScriptHost) = 
+type FSharpEngine(host: IScriptHost) =
     let stdin = new StreamReader(Stream.Null)
- 
+
     let stdoutStream = new CompilerOutputStream()
     let stdout = StreamWriter.Synchronized(new StreamWriter(stdoutStream, AutoFlush=true))
- 
+
     let stderrStream = new CompilerOutputStream()
     let stderr = StreamWriter.Synchronized(new StreamWriter(stderrStream, AutoFlush=true))
-     
+
     let fsiConfig = FsiEvaluationSession.GetDefaultConfiguration()
     let commonOptions = [| "c:\\fsi.exe"; "--nologo"; "--readline-"; "--noninteractive"|]
     let session = FsiEvaluationSession.Create(fsiConfig, commonOptions, stdin, Console.Out, stderr)
 
-    let (>>=) (d1:#IDisposable) (d2:#IDisposable) = 
+    let (>>=) (d1:#IDisposable) (d2:#IDisposable) =
         { new IDisposable with
             member x.Dispose() =
                 d1.Dispose()
                 d2.Dispose() }
 
-    member x.Execute(code) = 
+    member x.Execute(code) =
         try
             session.EvalInteraction(code)
             if code.EndsWith ";;" then
@@ -48,7 +48,7 @@ type FSharpEngine(host: IScriptHost) =
     member x.AddReference(ref) =
         session.EvalInteraction(sprintf "#r @\"%s\"" ref)
 
-    member x.SilentAddReference(ref) = 
+    member x.SilentAddReference(ref) =
         x.AddReference(ref)
         stdoutStream.Read() |> ignore
 
@@ -61,27 +61,18 @@ type FSharpEngine(host: IScriptHost) =
 
     interface IDisposable with
         member x.Dispose() =
-            (stdin >>= stdoutStream >>= stdout >>= stderrStream >>= stderr).Dispose()             
+            (stdin >>= stdoutStream >>= stdout >>= stderrStream >>= stderr).Dispose()
                              
 type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
-    let mutable baseDir = String.Empty
-    let mutable cacheDir = String.Empty
-    let mutable filename = String.Empty
     let [<Literal>] sessionKey = "F# Session"
     
     interface IScriptEngine with
 
-        member x.FileName
-            with get() = filename
-            and set value = filename <- value
+        member val FileName = "" with get, set
 
-        member x.CacheDirectory
-            with get() = cacheDir
-            and set value = cacheDir <- value
+        member val CacheDirectory = "" with get, set
 
-        member x.BaseDirectory
-            with get() = baseDir
-            and set value = baseDir <- value
+        member val BaseDirectory = "" with get, set
 
         member x.Execute(code, args, references, namespaces, scriptPackSession) =
             let distinctReferences = references.PathReferences.Union(scriptPackSession.References).Distinct()
@@ -129,4 +120,3 @@ type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
                 ScriptResult(cleaned)
             | Error e -> ScriptResult(compilationException=exn e)
             | Incomplete -> ScriptResult()
-
