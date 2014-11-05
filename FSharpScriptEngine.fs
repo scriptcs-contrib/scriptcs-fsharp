@@ -17,13 +17,13 @@ type Result =
     | Incomplete
 
 type FSharpEngine(host: IScriptHost) =
-    let stdin = new StreamReader(Stream.Null)
+    let stdin = new StringReader("")
 
-    let stdoutStream = new CompilerOutputStream()
-    let stdout = StreamWriter.Synchronized(new StreamWriter(stdoutStream, AutoFlush=true))
+    let stdoutStream = Text.StringBuilder()
+    let stdout = new StringWriter(stdoutStream)
 
-    let stderrStream = new CompilerOutputStream()
-    let stderr = StreamWriter.Synchronized(new StreamWriter(stderrStream, AutoFlush=true))
+    let stderrStream = Text.StringBuilder()
+    let stderr = new StringWriter(stderrStream)
 
     let fsiConfig = FsiEvaluationSession.GetDefaultConfiguration()
     let commonOptions = [| "c:\\fsi.exe"; "--nologo"; "--readline-"; "--noninteractive"|]
@@ -39,9 +39,9 @@ type FSharpEngine(host: IScriptHost) =
         try
             session.EvalInteraction(code)
             if code.EndsWith ";;" then
-                let error = stderrStream.Read()
+                let error = stderrStream.ToString()
                 if error.Length > 0 then Error(error) else
-                Success(stdoutStream.Read())
+                Success(stdoutStream.ToString())
             else Incomplete
         with ex -> Error ex.Message
 
@@ -50,18 +50,18 @@ type FSharpEngine(host: IScriptHost) =
 
     member x.SilentAddReference(ref) =
         x.AddReference(ref)
-        stdoutStream.Read() |> ignore
+        stdoutStream.ToString() |> ignore
 
     member x.ImportNamespace(namespace') =
         session.EvalInteraction(sprintf "open %s" namespace')
 
     member x.SilentImportNamespace(namespace') =
         x.ImportNamespace(namespace')
-        stdoutStream.Read() |> ignore
+        stdoutStream.ToString() |> ignore
 
     interface IDisposable with
         member x.Dispose() =
-            (stdin >>= stdoutStream >>= stdout >>= stderrStream >>= stderr).Dispose()
+            (stdin >>= stdout >>= stderr).Dispose()
                              
 type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
     let [<Literal>] sessionKey = "F# Session"
