@@ -8,8 +8,8 @@
     <owners>@authors@</owners>
     <language>en-US</language>
     <summary>@summary@</summary>
-    <projectUrl>http://github.com/glennblock/scriptcs-fsharp</projectUrl>
-    <licenseUrl>http://github.com/glennblock/scriptcs-fsharp/raw/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/scriptcs-contrib/scriptcs-fsharp</projectUrl>
+    <licenseUrl>https://raw.githubusercontent.com/scriptcs-contrib/scriptcs-fsharp/master/LICENSE.txt</licenseUrl>
     <tags>fsharp scriptcs script repl</tags>
     @dependencies@
   </metadata>
