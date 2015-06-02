@@ -141,26 +141,11 @@ Target "SourceLink" (fun _ ->
 // Build a NuGet package
 
 Target "NuGet" (fun _ ->
-    let fsiVersion = GetPackageVersion "packages" "FSharp.Compiler.Service"
-    let scriptcsVersion = GetPackageVersion "packages" "ScriptCs.Hosting"
-    NuGet (fun p -> 
+    Paket.Pack (fun p ->
         { p with   
-            Authors = authors
-            Project = project
-            Summary = summary
-            Description = description
             Version = release.NugetVersion
             ReleaseNotes = String.Join(Environment.NewLine, release.Notes)
-            Tags = tags
-            OutputPath = "bin"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            Publish = hasBuildParam "nugetkey"
-            Dependencies = [ "FSharp.Compiler.Service", fsiVersion
-                             "ScriptCs.Hosting", scriptcsVersion ]
-            Files = [ (@"bin\ScriptCs.FSharp.dll", Some "lib/net40", None)
-                      (@"bin\ScriptCs.FSharp.xml", Some "lib/net40", None)
-                      (@"bin\ScriptCs.FSharp.pdb", Some "lib/net40", None) ] })
-        (project + ".nuspec")
+            OutputPath = "./bin" })
 )
 
 // --------------------------------------------------------------------------------------

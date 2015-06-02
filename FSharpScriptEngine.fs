@@ -75,7 +75,7 @@ type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
         member val BaseDirectory = "" with get, set
 
         member x.Execute(code, args, references, namespaces, scriptPackSession) =
-            let distinctReferences = references.PathReferences.Union(scriptPackSession.References).Distinct()
+            let distinctReferences = references.Paths.Union(scriptPackSession.References).Distinct()
             let sessionState = 
                 match scriptPackSession.State.TryGetValue sessionKey with
                 | false, _ ->
@@ -93,7 +93,7 @@ type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
                         logger.DebugFormat("Importing namespace {0}", ns)
                         session.SilentImportNamespace ns)
                       
-                    let sessionState = SessionState<_>(References = AssemblyReferences (distinctReferences, Seq.empty), Session = session)
+                    let sessionState = SessionState<_>(References = AssemblyReferences(Seq.empty, distinctReferences), Session = session)
                     scriptPackSession.State.Add(sessionKey, sessionState)
                     sessionState 
                 | true, res ->
@@ -103,8 +103,8 @@ type FSharpScriptEngine(scriptHostFactory: IScriptHostFactory, logger: ILog) =
                     let newReferences =
                         match sessionState.References with
                         | null -> distinctReferences
-                        | refs when Seq.isEmpty refs.PathReferences -> distinctReferences
-                        | refs ->  distinctReferences.Except refs.PathReferences
+                        | refs when Seq.isEmpty refs.Paths -> distinctReferences
+                        | refs ->  distinctReferences.Except refs.Paths
                     newReferences
                     |> Seq.iter (fun ref ->
                         logger.DebugFormat("Adding reference to {0}", ref)
