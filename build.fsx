@@ -41,8 +41,6 @@ let description = """
   A ScriptCs script engine for F#."""
 // List of author names (for NuGet package)
 let authors = "scriptcs-contrib Contributors"
-// Tags for your project (for NuGet package)
-let tags = "scriptcs F# fsharp scripting REPL"
 
 // File system information 
 // (<solutionFile>.sln is built during the building process)
