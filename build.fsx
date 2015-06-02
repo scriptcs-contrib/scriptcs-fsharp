@@ -40,7 +40,7 @@ let summary = "A ScriptCs script engine for F#"
 let description = """
   A ScriptCs script engine for F#."""
 // List of author names (for NuGet package)
-let authors = [ "7sharp9"; "gblock"; "panesofglass" ]
+let authors = "scriptcs-contrib Contributors"
 // Tags for your project (for NuGet package)
 let tags = "scriptcs F# fsharp scripting REPL"
 
@@ -81,7 +81,9 @@ Target "AssemblyInfo" (fun _ ->
   CreateFSharpAssemblyInfo fileName
       [ Attribute.Title project
         Attribute.Product project
+        Attribute.Company authors
         Attribute.Description summary
+        Attribute.InformationalVersion release.NugetVersion
         Attribute.Version release.AssemblyVersion
         Attribute.FileVersion release.AssemblyVersion ] )
 
