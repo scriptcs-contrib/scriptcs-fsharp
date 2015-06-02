@@ -8,7 +8,7 @@ F# engine for scriptcs
 ## Installation
 
 ```
-scriptcs -install -g ScriptCs.FSharp -Pre
+scriptcs -install ScriptCs.FSharp -Pre -g
 ```
 
 ## Use
