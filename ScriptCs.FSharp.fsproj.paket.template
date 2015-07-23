@@ -1,0 +1,10 @@
+type project
+language en-US
+projectUrl https://github.com/scriptcs-contrib/scriptcs-fsharp
+licenseUrl https://raw.githubusercontent.com/scriptcs-contrib/scriptcs-fsharp/master/LICENSE.txt
+tags
+    F#
+    fsharp
+    scriptcs
+    scripting
+    REPL

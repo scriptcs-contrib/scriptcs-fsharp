@@ -40,9 +40,7 @@ let summary = "A ScriptCs script engine for F#"
 let description = """
   A ScriptCs script engine for F#."""
 // List of author names (for NuGet package)
-let authors = [ "7sharp9"; "gblock"; "panesofglass" ]
-// Tags for your project (for NuGet package)
-let tags = "scriptcs F# fsharp scripting REPL"
+let authors = "scriptcs-contrib Contributors"
 
 // File system information 
 // (<solutionFile>.sln is built during the building process)
@@ -81,7 +79,9 @@ Target "AssemblyInfo" (fun _ ->
   CreateFSharpAssemblyInfo fileName
       [ Attribute.Title project
         Attribute.Product project
+        Attribute.Company authors
         Attribute.Description summary
+        Attribute.InformationalVersion release.NugetVersion
         Attribute.Version release.AssemblyVersion
         Attribute.FileVersion release.AssemblyVersion ] )
 
@@ -141,26 +141,11 @@ Target "SourceLink" (fun _ ->
 // Build a NuGet package
 
 Target "NuGet" (fun _ ->
-    let fsiVersion = GetPackageVersion "packages" "FSharp.Compiler.Service"
-    let scriptcsVersion = GetPackageVersion "packages" "ScriptCs.Hosting"
-    NuGet (fun p -> 
+    Paket.Pack (fun p ->
         { p with   
-            Authors = authors
-            Project = project
-            Summary = summary
-            Description = description
             Version = release.NugetVersion
             ReleaseNotes = String.Join(Environment.NewLine, release.Notes)
-            Tags = tags
-            OutputPath = "bin"
-            AccessKey = getBuildParamOrDefault "nugetkey" ""
-            Publish = hasBuildParam "nugetkey"
-            Dependencies = [ "FSharp.Compiler.Service", fsiVersion
-                             "ScriptCs.Hosting", scriptcsVersion ]
-            Files = [ (@"bin\ScriptCs.FSharp.dll", Some "lib/net40", None)
-                      (@"bin\ScriptCs.FSharp.xml", Some "lib/net40", None)
-                      (@"bin\ScriptCs.FSharp.pdb", Some "lib/net40", None) ] })
-        (project + ".nuspec")
+            OutputPath = "./bin" })
 )
 
 // --------------------------------------------------------------------------------------
