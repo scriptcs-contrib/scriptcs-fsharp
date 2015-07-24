@@ -29,6 +29,13 @@ type FSharpEngine(host: IScriptHost) =
     let commonOptions = [| "c:\\fsi.exe"; "--nologo"; "--readline-"; "--noninteractive"|]
     let session = FsiEvaluationSession.Create(fsiConfig, commonOptions, stdin, stdout, stderr)
 
+    do
+        session.EvalInteraction("let env = new System.Collections.Generic.Dictionary<string, obj>()")
+        let result = session.EvalExpression("System.Action<string, obj>(fun k v -> env.Add(k, v))")
+        match result with
+        | Some value -> let func : Action<string, obj> = unbox value.ReflectionValue in func.Invoke("Host", box host)
+        | None -> failwith "The system is down"
+
     let (>>=) (d1:#IDisposable) (d2:#IDisposable) =
         { new IDisposable with
             member x.Dispose() =
